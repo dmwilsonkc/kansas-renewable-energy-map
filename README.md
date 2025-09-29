@@ -6,8 +6,6 @@ An interactive web-based map displaying renewable energy development moratoriums
 
 **View the interactive map:** [https://dmwilsonkc.github.io/kansas-renewable-energy-map/](https://dmwilsonkc.github.io/kansas-renewable-energy-map/)
 
-*(Replace `yourusername` with your actual GitHub username)*
-
 ## 📊 About This Project
 
 This interactive map provides comprehensive data on wind and solar energy development restrictions across Kansas, including:
