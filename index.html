@@ -39,6 +39,7 @@
         #map-container {
             display: flex;
             height: calc(100vh - 100px);
+            min-height: 500px;
             max-width: 1600px;
             margin: 0 auto;
             padding: 20px;
@@ -47,9 +48,53 @@
         
         #map {
             flex: 1;
+            min-height: 500px;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             z-index: 1;
+            position: relative;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            z-index: 1000;
+            text-align: center;
+        }
+        
+        #loading.hidden {
+            display: none;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #error-message {
+            display: none;
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            margin: 10px;
+            border-radius: 8px;
+            color: #856404;
         }
         
         #legend {
@@ -161,14 +206,26 @@
             #map-container {
                 flex-direction: column;
                 height: auto;
+                padding: 10px;
             }
             
             #map {
-                height: 500px;
+                height: 70vh;
+                min-height: 400px;
+                width: 100%;
             }
             
             #legend {
                 width: 100%;
+                max-height: 400px;
+            }
+            
+            #header h1 {
+                font-size: 1.5em;
+            }
+            
+            #header p {
+                font-size: 1em;
             }
         }
     </style>
@@ -180,7 +237,12 @@
     </div>
     
     <div id="map-container">
-        <div id="map"></div>
+        <div id="map">
+            <div id="loading">
+                <div class="spinner"></div>
+                <div>Loading map data...</div>
+            </div>
+        </div>
         <div id="legend">
             <h3>Legend</h3>
             <div class="legend-item">
@@ -236,7 +298,14 @@
 
     <script>
         // Initialize the map centered on Kansas
-        const map = L.map('map').setView([38.5, -98.5], 7);
+        const map = L.map('map', {
+            center: [38.5, -98.5],
+            zoom: 7,
+            zoomControl: true,
+            scrollWheelZoom: true,
+            touchZoom: true,
+            dragging: true
+        });
 
         // Add tile layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -244,6 +313,33 @@
             maxZoom: 10,
             minZoom: 6
         }).addTo(map);
+
+        // Function to hide loading indicator
+        function hideLoading() {
+            const loadingEl = document.getElementById('loading');
+            if (loadingEl) {
+                loadingEl.classList.add('hidden');
+            }
+        }
+
+        // Function to show error
+        function showError(message) {
+            hideLoading();
+            const errorDiv = document.createElement('div');
+            errorDiv.id = 'error-message';
+            errorDiv.style.display = 'block';
+            errorDiv.innerHTML = `
+                <strong>⚠️ Map Loading Issue</strong><br>
+                ${message}<br>
+                <small>Try refreshing the page or viewing on a different device.</small>
+            `;
+            document.getElementById('map').appendChild(errorDiv);
+        }
+
+        // Timeout for loading
+        const loadTimeout = setTimeout(() => {
+            showError('Map data is taking longer than expected to load. Please check your internet connection.');
+        }, 15000); // 15 second timeout
 
         // County data with moratorium information
         const countyData = {
@@ -370,8 +466,15 @@
 
         // Load Kansas county GeoJSON and add to map
         fetch('https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
             .then(data => {
+                clearTimeout(loadTimeout); // Clear timeout on success
+                
                 // Filter for Kansas counties (FIPS code starting with 20)
                 const kansasCounties = {
                     type: 'FeatureCollection',
@@ -438,10 +541,19 @@
                         }
                     }
                 }).addTo(map);
+                
+                // Hide loading indicator
+                hideLoading();
+                
+                // Ensure map renders properly on mobile
+                setTimeout(() => {
+                    map.invalidateSize();
+                }, 100);
             })
             .catch(error => {
+                clearTimeout(loadTimeout);
                 console.error('Error loading GeoJSON:', error);
-                alert('Unable to load county boundary data. Please check your internet connection.');
+                showError('Unable to load county boundary data. This may be due to network connectivity issues or browser restrictions.');
             });
     </script>
 </body>
