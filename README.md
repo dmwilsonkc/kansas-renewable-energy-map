@@ -4,7 +4,7 @@ An interactive web-based map displaying renewable energy development moratoriums
 
 ## 🌐 Live Map
 
-**View the interactive map:** [https://yourusername.github.io/kansas-renewable-energy-map/](https://yourusername.github.io/kansas-renewable-energy-map/)
+**View the interactive map:** [https://dmwilsonkc.github.io/kansas-renewable-energy-map/](https://dmwilsonkc.github.io/kansas-renewable-energy-map/)
 
 *(Replace `yourusername` with your actual GitHub username)*
 
