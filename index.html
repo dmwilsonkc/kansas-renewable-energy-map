@@ -203,21 +203,30 @@
         }
         
         @media (max-width: 968px) {
+            body {
+                overflow-y: auto;
+            }
+            
             #map-container {
                 flex-direction: column;
                 height: auto;
+                min-height: auto;
                 padding: 10px;
             }
             
             #map {
-                height: 70vh;
+                height: 60vh;
                 min-height: 400px;
+                max-height: 600px;
                 width: 100%;
+                margin-bottom: 20px;
             }
             
             #legend {
                 width: 100%;
-                max-height: 400px;
+                max-height: none;
+                position: relative;
+                overflow-y: visible;
             }
             
             #header h1 {
@@ -297,21 +306,22 @@
     </div>
 
     <script>
-        // Initialize the map centered on Kansas
+        // Initialize the map centered on Kansas (will auto-fit on data load)
         const map = L.map('map', {
             center: [38.5, -98.5],
             zoom: 7,
             zoomControl: true,
             scrollWheelZoom: true,
             touchZoom: true,
-            dragging: true
+            dragging: true,
+            minZoom: 6
         });
 
         // Add tile layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
-            maxZoom: 10,
-            minZoom: 6
+            maxZoom: 12,
+            minZoom: 5
         }).addTo(map);
 
         // Function to hide loading indicator
@@ -481,7 +491,7 @@
                     features: data.features.filter(f => f.id.startsWith('20'))
                 };
 
-                L.geoJSON(kansasCounties, {
+                const geoJsonLayer = L.geoJSON(kansasCounties, {
                     style: function(feature) {
                         // Extract county name from properties
                         const countyName = feature.properties.NAME || feature.properties.name;
@@ -542,12 +552,24 @@
                     }
                 }).addTo(map);
                 
+                // Auto-fit map to Kansas boundaries
+                const bounds = geoJsonLayer.getBounds();
+                map.fitBounds(bounds, {
+                    padding: [20, 20],
+                    maxZoom: 9
+                });
+                
                 // Hide loading indicator
                 hideLoading();
                 
                 // Ensure map renders properly on mobile
                 setTimeout(() => {
                     map.invalidateSize();
+                    // Re-fit bounds after resize
+                    map.fitBounds(bounds, {
+                        padding: [20, 20],
+                        maxZoom: 9
+                    });
                 }, 100);
             })
             .catch(error => {
