@@ -6,6 +6,8 @@
     <title>Kansas Renewable Energy Moratoriums Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -104,6 +106,7 @@
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             overflow-y: auto;
+            flex-shrink: 0;
         }
         
         #legend h3 {
@@ -301,6 +304,7 @@
             
             <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e0e0e0; font-size: 0.85em; color: #666;">
                 <p><strong>How to use:</strong> Click any county for detailed information about moratoriums, dates, and source links.</p>
+                <p style="margin-top: 10px;"><strong>Data source:</strong> Loaded from county_data.csv</p>
             </div>
         </div>
     </div>
@@ -339,126 +343,12 @@
             errorDiv.id = 'error-message';
             errorDiv.style.display = 'block';
             errorDiv.innerHTML = `
-                <strong>⚠️ Map Loading Issue</strong><br>
+                <strong>⚠️ Error Loading Data</strong><br>
                 ${message}<br>
-                <small>Try refreshing the page or viewing on a different device.</small>
+                <small>Please ensure county_data.csv is in the same folder as index.html</small>
             `;
             document.getElementById('map').appendChild(errorDiv);
         }
-
-        // Timeout for loading
-        const loadTimeout = setTimeout(() => {
-            showError('Map data is taking longer than expected to load. Please check your internet connection.');
-        }, 15000); // 15 second timeout
-
-        // County data with moratorium information
-        const countyData = {
-            'Allen': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.allencounty.org', status: 'none' },
-            'Anderson': { wind: 'No', windDates: 'N/A', solar: 'Yes - Active', solarDates: 'Aug 2023 - ongoing', source: 'https://kofo.com/2024/09/10/anco-extend-moratorium-on-solar/', status: 'active-partial' },
-            'Atchison': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://farmerpublishing.com', status: 'none' },
-            'Barber': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.change.org', status: 'none' },
-            'Barton': { wind: 'No', windDates: 'N/A', solar: 'Expired', solarDates: 'Spring 2023 - March 2024', source: 'https://kansasreflector.com', status: 'expired' },
-            'Bourbon': { wind: 'No', windDates: 'N/A', solar: 'Yes - Active (4-year)', solarDates: 'Jan 13, 2025 - Jan 13, 2029', source: 'https://fortscott.biz/news/new-commission-voted-for-four-year-moratorium-on-solar', status: 'active-partial' },
-            'Brown': { wind: 'De facto ban', windDates: 'Jan 13, 2025', solar: 'No', solarDates: 'N/A', source: 'https://www.hiawathaworldonline.com', status: 'ban' },
-            'Butler': { wind: 'State (Tallgrass)', windDates: '2004-present', solar: 'No', solarDates: 'N/A', source: 'https://www.ksn.com', status: 'state' },
-            'Chase': { wind: 'State (Tallgrass)', windDates: '2004-present', solar: 'No', solarDates: 'N/A', source: 'https://www.wibw.com', status: 'state' },
-            'Chautauqua': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Cherokee': { wind: 'Expired', windDates: 'Aug 2021 - Aug 2022', solar: 'No', solarDates: 'N/A', source: 'https://www.joplinglobe.com', status: 'expired' },
-            'Cheyenne': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: '', status: 'none' },
-            'Clark': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: '', status: 'none' },
-            'Clay': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.claycountykansas.org', status: 'none' },
-            'Cloud': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.ncktoday.com', status: 'none' },
-            'Coffey': { wind: 'State (Tallgrass)', windDates: '2004-present', solar: 'No', solarDates: 'N/A', source: 'https://www.coffeycountyks.org', status: 'state' },
-            'Comanche': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: '', status: 'none' },
-            'Cowley': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.rd.usda.gov', status: 'none' },
-            'Crawford': { wind: 'Yes - Active', windDates: 'Current - Dec 31, 2025', solar: 'Yes - Active', solarDates: 'Current - Dec 31, 2025', source: 'https://citizenportal.ai/articles/2984591', status: 'active-both' },
-            'Decatur': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Dickinson': { wind: 'No (overturned)', windDates: 'Proposed Oct 2024, overturned Nov 21, 2024', solar: 'No', solarDates: 'N/A', source: 'https://www.kwch.com', status: 'none' },
-            'Doniphan': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://dpcountyks.com', status: 'none' },
-            'Douglas': { wind: 'De facto ban', windDates: 'April 2024', solar: 'No', solarDates: 'N/A', source: 'https://www.kcur.org', status: 'ban' },
-            'Edwards': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Elk': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.gem.wiki', status: 'none' },
-            'Ellis': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.wind-watch.org', status: 'none' },
-            'Ellsworth': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.power-technology.com', status: 'none' },
-            'Finney': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.kfb.org', status: 'none' },
-            'Ford': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.nexteraenergyresources.com', status: 'none' },
-            'Franklin': { wind: 'De facto ban', windDates: 'Feb 8, 2023', solar: 'Under consideration', solarDates: 'April 2025 discussions', source: 'https://garnett-ks.com', status: 'ban' },
-            'Geary': { wind: 'State (Tallgrass)', windDates: '2004-present', solar: 'Insufficient data', solarDates: 'N/A', source: 'https://kansasreflector.com', status: 'state' },
-            'Gove': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Graham': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Grant': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Gray': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Greeley': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Greenwood': { wind: 'State (Tallgrass)', windDates: '2004-present', solar: 'Insufficient data', solarDates: 'N/A', source: 'https://windexchange.energy.gov', status: 'state' },
-            'Hamilton': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Harper': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Harvey': { wind: 'Permanent ban', windDates: 'Nov 14, 2023 - ongoing', solar: 'Permanent ban', solarDates: 'Nov 14, 2023 - ongoing', source: 'https://www.harveycounty.com', status: 'ban' },
-            'Haskell': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: '', status: 'none' },
-            'Hodgeman': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.power-technology.com', status: 'none' },
-            'Jackson': { wind: 'Yes - Active (2 years)', windDates: 'Jan 17, 2024 - Jan 17, 2026', solar: 'No', solarDates: 'N/A', source: 'https://www.holtonrecorder.net', status: 'active-partial' },
-            'Jefferson': { wind: 'Yes - Active', windDates: '2023 (Resolution 2023-001)', solar: 'Yes - Active', solarDates: '2023 (Resolution 2023-001)', source: 'https://www.jfcountyks.com', status: 'active-both' },
-            'Jewell': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: '', status: 'none' },
-            'Johnson': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.jocogov.org', status: 'none' },
-            'Kearny': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.kearnycountykansas.com', status: 'none' },
-            'Kingman': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://centerforlocalpolicy.org', status: 'none' },
-            'Kiowa': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: '', status: 'none' },
-            'Labette': { wind: 'Expired', windDates: 'Extended Nov 2020 - early 2021', solar: 'No', solarDates: 'N/A', source: 'https://www.wind-watch.org', status: 'expired' },
-            'Lane': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Leavenworth': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://files.leavenworthcounty.gov', status: 'none' },
-            'Lincoln': { wind: 'State (Tallgrass)', windDates: '2004-present', solar: 'State (Tallgrass)', solarDates: '2004-present', source: 'https://www.wibw.com', status: 'state' },
-            'Linn': { wind: 'No', windDates: 'N/A', solar: 'Expired', solarDates: 'Nov 20, 2023 - Nov 20, 2024', source: 'https://www.linncountyjournal.com', status: 'expired' },
-            'Logan': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: '', status: 'none' },
-            'Lyon': { wind: 'State (Tallgrass)', windDates: '2004-present', solar: 'No', solarDates: 'N/A', source: 'https://findenergy.com', status: 'state' },
-            'Marion': { wind: 'Excluded from state moratorium', windDates: 'Active wind farms', solar: 'No', solarDates: 'N/A', source: 'https://www.prnewswire.com', status: 'none' },
-            'Marshall': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://kansasreflector.com', status: 'none' },
-            'McPherson': { wind: 'Yes - Active', windDates: 'Nov 11, 2024 - ongoing', solar: 'Yes - Active', solarDates: 'Nov 11, 2024 - ongoing', source: 'https://citizenportal.ai/articles/2380269', status: 'active-both' },
-            'Meade': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.meadecounty.org', status: 'none' },
-            'Miami': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://centerforlocalpolicy.org', status: 'none' },
-            'Mitchell': { wind: 'Yes - Active (12 months)', windDates: 'July 8, 2024 - July 2025', solar: 'Yes - Likely included', solarDates: 'July 8, 2024 - July 2025', source: 'https://kvsvradio.com', status: 'active-both' },
-            'Montgomery': { wind: 'Not a Kansas county', windDates: 'N/A', solar: 'Not a Kansas county', solarDates: 'N/A', source: '', status: 'none' },
-            'Morris': { wind: 'State (Tallgrass)', windDates: '2004-present', solar: 'No', solarDates: 'N/A', source: 'https://www.morriscountyks.org', status: 'state' },
-            'Morton': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: '', status: 'none' },
-            'Nemaha': { wind: 'Yes - Active', windDates: 'May 13, 2019 - extended through Oct 2024', solar: 'No', solarDates: 'N/A', source: 'https://www.wind-watch.org', status: 'active-partial' },
-            'Neosho': { wind: 'Yes - Ongoing/indefinite', windDates: 'Sep 2019 - ongoing', solar: 'No', solarDates: 'N/A', source: 'https://www.wind-watch.org', status: 'active-partial' },
-            'Ness': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: '', status: 'none' },
-            'Norton': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: '', status: 'none' },
-            'Osage': { wind: 'Yes - Active (25-year)', windDates: 'Jan 30, 2025 - Dec 31, 2049', solar: 'Yes - Active (25-year)', solarDates: 'Jan 30, 2025 - Dec 31, 2049', source: 'https://citizenportal.ai/articles/2629157', status: 'active-both' },
-            'Osborne': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.rollingprairiewind.com', status: 'none' },
-            'Ottawa': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Pawnee': { wind: 'Yes - Active (12 months)', windDates: 'March 4, 2025 - March 4, 2026', solar: 'Yes - Active (12 months)', solarDates: 'March 4, 2025 - March 4, 2026', source: 'https://www.mscnews.net', status: 'active-both' },
-            'Phillips': { wind: 'Yes', windDates: 'As of 2022, dates unclear', solar: 'Yes', solarDates: 'As of 2022, dates unclear', source: 'https://coloradosun.com', status: 'active-both' },
-            'Pottawatomie': { wind: 'State (Tallgrass)', windDates: '2004-present', solar: 'Yes - Active (3-year)', solarDates: 'Nov 27, 2023 - Nov 27, 2026', source: 'https://www.pottcounty.org', status: 'state' },
-            'Pratt': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.prattcounty.org', status: 'none' },
-            'Rawlins': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Reno': { wind: 'Permanent ban (zoned areas)', windDates: 'Dec 14, 2021 - ongoing', solar: 'Lifted', solarDates: 'Lifted March 26, 2025', source: 'https://www.adastraradio.com', status: 'ban' },
-            'Republic': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'http://republiccounty.org', status: 'none' },
-            'Rice': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Riley': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.ksnt.com', status: 'none' },
-            'Rooks': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Rush': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Russell': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://sunflower.net', status: 'none' },
-            'Saline': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.salinecountyks.gov', status: 'none' },
-            'Scott': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Sedgwick': { wind: 'Permanent ban', windDates: 'Aug 21, 2019 - ongoing', solar: 'Multiple moratoriums', solarDates: 'Various dates through March 2024', source: 'https://www.sedgwickcounty.org', status: 'ban' },
-            'Seward': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.kfb.org', status: 'none' },
-            'Shawnee': { wind: 'Permanent ban', windDates: 'May 2024 - ongoing', solar: 'Yes - Active (1-year)', solarDates: 'May 2024 - May 2025', source: 'https://kaninfo.com', status: 'ban' },
-            'Sheridan': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Sherman': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Smith': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Stafford': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Stanton': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.mcgrawcenter.org', status: 'none' },
-            'Stevens': { wind: 'Under discussion', windDates: 'Dec 11, 2023 discussion', solar: 'Under discussion', solarDates: 'Dec 11, 2023 discussion', source: 'https://stevenscoks.org', status: 'none' },
-            'Sumner': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Thomas': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Trego': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Wabaunsee': { wind: 'Permanent ban + State', windDates: 'County ban + 2004-present (state)', solar: 'No', solarDates: 'N/A', source: 'https://www.babstcalland.com', status: 'ban' },
-            'Wallace': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Washington': { wind: 'Expired', windDates: 'Extended to Aug 31, 2021', solar: 'Expired', solarDates: 'Extended to Aug 31, 2021', source: 'https://www.wind-watch.org', status: 'expired' },
-            'Wichita': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://findenergy.com', status: 'none' },
-            'Wilson': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Woodson': { wind: 'Insufficient data', windDates: 'N/A', solar: 'Insufficient data', solarDates: 'N/A', source: '', status: 'insufficient' },
-            'Wyandotte': { wind: 'No', windDates: 'N/A', solar: 'No', solarDates: 'N/A', source: 'https://www.kshb.com', status: 'none' }
-        };
 
         // Function to get color based on status
         function getColor(status) {
@@ -474,109 +364,156 @@
             }
         }
 
-        // Load Kansas county GeoJSON and add to map
-        fetch('https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json')
+        // Will be loaded from CSV file
+        let countyData = {};
+
+        // Timeout for loading
+        const loadTimeout = setTimeout(() => {
+            showError('Map data is taking longer than expected to load. Please check your internet connection and ensure county_data.csv exists.');
+        }, 15000);
+
+        // Load county data from CSV file
+        fetch('county_data.csv')
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    throw new Error('Could not load county_data.csv file');
                 }
-                return response.json();
+                return response.text();
             })
-            .then(data => {
-                clearTimeout(loadTimeout); // Clear timeout on success
-                
-                // Filter for Kansas counties (FIPS code starting with 20)
-                const kansasCounties = {
-                    type: 'FeatureCollection',
-                    features: data.features.filter(f => f.id.startsWith('20'))
-                };
-
-                const geoJsonLayer = L.geoJSON(kansasCounties, {
-                    style: function(feature) {
-                        // Extract county name from properties
-                        const countyName = feature.properties.NAME || feature.properties.name;
-                        const data = countyData[countyName];
-                        const color = data ? getColor(data.status) : '#bdbdbd';
-                        
-                        return {
-                            fillColor: color,
-                            weight: 2,
-                            opacity: 1,
-                            color: 'white',
-                            fillOpacity: 0.7
-                        };
-                    },
-                    onEachFeature: function(feature, layer) {
-                        const countyName = feature.properties.NAME || feature.properties.name;
-                        const data = countyData[countyName];
-                        
-                        if (data) {
-                            // Hover effect
-                            layer.on({
-                                mouseover: function(e) {
-                                    const layer = e.target;
-                                    layer.setStyle({
-                                        weight: 3,
-                                        color: '#666',
-                                        fillOpacity: 0.9
-                                    });
-                                },
-                                mouseout: function(e) {
-                                    const layer = e.target;
-                                    layer.setStyle({
-                                        weight: 2,
-                                        color: 'white',
-                                        fillOpacity: 0.7
-                                    });
-                                }
-                            });
-
-                            // Create popup content
-                            const popupContent = `
-                                <div class="popup-title">${countyName} County</div>
-                                <div class="popup-section">
-                                    <span class="popup-label">Wind Moratorium:</span>
-                                    <div class="popup-value ${data.wind.includes('Yes') || data.wind.includes('ban') ? 'status-active' : data.wind.includes('Expired') ? 'status-expired' : 'status-none'}">${data.wind}</div>
-                                    <div style="font-size: 0.9em; color: #666;">${data.windDates}</div>
-                                </div>
-                                <div class="popup-section">
-                                    <span class="popup-label">Solar Moratorium:</span>
-                                    <div class="popup-value ${data.solar.includes('Yes') || data.solar.includes('ban') ? 'status-active' : data.solar.includes('Expired') ? 'status-expired' : 'status-none'}">${data.solar}</div>
-                                    <div style="font-size: 0.9em; color: #666;">${data.solarDates}</div>
-                                </div>
-                                ${data.source ? `<a href="${data.source}" target="_blank" class="popup-link">View Source →</a>` : ''}
-                            `;
-
-                            layer.bindPopup(popupContent);
-                        }
+            .then(csvText => {
+                // Parse CSV using Papa Parse
+                const results = Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    transformHeader: function(header) {
+                        return header.trim();
                     }
-                }).addTo(map);
-                
-                // Auto-fit map to Kansas boundaries
-                const bounds = geoJsonLayer.getBounds();
-                map.fitBounds(bounds, {
-                    padding: [20, 20],
-                    maxZoom: 9
                 });
                 
-                // Hide loading indicator
-                hideLoading();
+                // Convert CSV rows to object format
+                results.data.forEach(row => {
+                    const countyName = row['County'].trim();
+                    countyData[countyName] = {
+                        wind: row['Wind Status'],
+                        windDates: row['Wind Dates'],
+                        solar: row['Solar Status'],
+                        solarDates: row['Solar Dates'],
+                        source: row['Source'],
+                        status: row['Status Category']
+                    };
+                });
                 
-                // Ensure map renders properly on mobile
-                setTimeout(() => {
-                    map.invalidateSize();
-                    // Re-fit bounds after resize
+                console.log('✅ County data loaded successfully:', Object.keys(countyData).length + ' counties');
+                
+                // Now load the map
+                loadMapData();
+            })
+            .catch(error => {
+                clearTimeout(loadTimeout);
+                console.error('Error loading county data:', error);
+                showError('Unable to load county_data.csv. ' + error.message);
+            });
+
+        // Load map data
+        function loadMapData() {
+            fetch('https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    clearTimeout(loadTimeout);
+                    
+                    // Filter for Kansas counties (FIPS code starting with 20)
+                    const kansasCounties = {
+                        type: 'FeatureCollection',
+                        features: data.features.filter(f => f.id.startsWith('20'))
+                    };
+
+                    const geoJsonLayer = L.geoJSON(kansasCounties, {
+                        style: function(feature) {
+                            const countyName = feature.properties.NAME || feature.properties.name;
+                            const data = countyData[countyName];
+                            const color = data ? getColor(data.status) : '#bdbdbd';
+                            
+                            return {
+                                fillColor: color,
+                                weight: 2,
+                                opacity: 1,
+                                color: 'white',
+                                fillOpacity: 0.7
+                            };
+                        },
+                        onEachFeature: function(feature, layer) {
+                            const countyName = feature.properties.NAME || feature.properties.name;
+                            const data = countyData[countyName];
+                            
+                            if (data) {
+                                layer.on({
+                                    mouseover: function(e) {
+                                        const layer = e.target;
+                                        layer.setStyle({
+                                            weight: 3,
+                                            color: '#666',
+                                            fillOpacity: 0.9
+                                        });
+                                    },
+                                    mouseout: function(e) {
+                                        const layer = e.target;
+                                        layer.setStyle({
+                                            weight: 2,
+                                            color: 'white',
+                                            fillOpacity: 0.7
+                                        });
+                                    }
+                                });
+
+                                const popupContent = `
+                                    <div class="popup-title">${countyName} County</div>
+                                    <div class="popup-section">
+                                        <span class="popup-label">Wind Moratorium:</span>
+                                        <div class="popup-value ${data.wind.includes('Yes') || data.wind.includes('ban') ? 'status-active' : data.wind.includes('Expired') ? 'status-expired' : 'status-none'}">${data.wind}</div>
+                                        <div style="font-size: 0.9em; color: #666;">${data.windDates}</div>
+                                    </div>
+                                    <div class="popup-section">
+                                        <span class="popup-label">Solar Moratorium:</span>
+                                        <div class="popup-value ${data.solar.includes('Yes') || data.solar.includes('ban') ? 'status-active' : data.solar.includes('Expired') ? 'status-expired' : 'status-none'}">${data.solar}</div>
+                                        <div style="font-size: 0.9em; color: #666;">${data.solarDates}</div>
+                                    </div>
+                                    ${data.source ? `<a href="${data.source}" target="_blank" class="popup-link">View Source →</a>` : ''}
+                                `;
+
+                                layer.bindPopup(popupContent);
+                            }
+                        }
+                    }).addTo(map);
+                    
+                    // Auto-fit map to Kansas boundaries
+                    const bounds = geoJsonLayer.getBounds();
                     map.fitBounds(bounds, {
                         padding: [20, 20],
                         maxZoom: 9
                     });
-                }, 100);
-            })
-            .catch(error => {
-                clearTimeout(loadTimeout);
-                console.error('Error loading GeoJSON:', error);
-                showError('Unable to load county boundary data. This may be due to network connectivity issues or browser restrictions.');
-            });
+                    
+                    hideLoading();
+                    
+                    // Ensure map renders properly on mobile
+                    setTimeout(() => {
+                        map.invalidateSize();
+                        map.fitBounds(bounds, {
+                            padding: [20, 20],
+                            maxZoom: 9
+                        });
+                    }, 100);
+                })
+                .catch(error => {
+                    clearTimeout(loadTimeout);
+                    console.error('Error loading GeoJSON:', error);
+                    showError('Unable to load county boundary data. This may be due to network connectivity issues.');
+                });
+        }
     </script>
 </body>
 </html>
