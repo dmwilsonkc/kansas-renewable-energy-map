@@ -377,6 +377,14 @@
         // Will be loaded from CSV file
         let countyData = {};
 
+        // Normalize county names for consistent matching
+        function normCountyName(s) {
+            return (s || "")
+                .trim()
+                .replace(/\s+County$/i, "")
+                .toLowerCase();
+        }
+
         // Timeout for loading
         const loadTimeout = setTimeout(() => {
             showError('Map data is taking longer than expected to load. Please check your internet connection and ensure county_data.csv exists.');
@@ -402,14 +410,16 @@
                 
                 // Convert CSV rows to object format
                 results.data.forEach(row => {
-                    const countyName = row['County'].trim();
-                    countyData[countyName] = {
-                        wind: row['Wind Status'],
-                        windDates: row['Wind Dates'],
-                        solar: row['Solar Status'],
-                        solarDates: row['Solar Dates'],
-                        source: row['Source'],
-                        status: row['Status Category']
+                    const rawName = row['County'] ? row['County'].trim() : "";
+                    const key = normCountyName(rawName);
+                    countyData[key] = {
+                        wind: row['Wind Status']?.trim() || "",
+                        windDates: row['Wind Dates']?.trim() || "",
+                        solar: row['Solar Status']?.trim() || "",
+                        solarDates: row['Solar Dates']?.trim() || "",
+                        source: row['Source']?.trim() || "",
+                        status: row['Status Category']?.trim() || "insufficient",
+                        displayName: rawName
                     };
                 });
                 
@@ -444,8 +454,8 @@
 
                     const geoJsonLayer = L.geoJSON(kansasCounties, {
                         style: function(feature) {
-                            const countyName = feature.properties.NAME || feature.properties.name;
-                            const data = countyData[countyName];
+                            const countyName = (feature.properties.NAME || feature.properties.name || "").trim();
+                            const data = countyData[normCountyName(countyName)];
                             const color = data ? getColor(data.status) : '#bdbdbd';
                             
                             return {
@@ -457,46 +467,54 @@
                             };
                         },
                         onEachFeature: function(feature, layer) {
-                            const countyName = feature.properties.NAME || feature.properties.name;
-                            const data = countyData[countyName];
+                            const countyName = (feature.properties.NAME || feature.properties.name || "").trim();
+                            const data = countyData[normCountyName(countyName)];
                             
-                            if (data) {
-                                layer.on({
-                                    mouseover: function(e) {
-                                        const layer = e.target;
-                                        layer.setStyle({
-                                            weight: 3,
-                                            color: '#666',
-                                            fillOpacity: 0.9
-                                        });
-                                    },
-                                    mouseout: function(e) {
-                                        const layer = e.target;
-                                        layer.setStyle({
-                                            weight: 2,
-                                            color: 'white',
-                                            fillOpacity: 0.7
-                                        });
-                                    }
-                                });
+                            if (!data) return;
+                            
+                            layer.on({
+                                mouseover: function(e) {
+                                    const layer = e.target;
+                                    layer.setStyle({
+                                        weight: 3,
+                                        color: '#666',
+                                        fillOpacity: 0.9
+                                    });
+                                },
+                                mouseout: function(e) {
+                                    const layer = e.target;
+                                    layer.setStyle({
+                                        weight: 2,
+                                        color: 'white',
+                                        fillOpacity: 0.7
+                                    });
+                                }
+                            });
 
-                                const popupContent = `
-                                    <div class="popup-title">${countyName} County</div>
-                                    <div class="popup-section">
-                                        <span class="popup-label">Wind Moratorium:</span>
-                                        <div class="popup-value ${data.wind.includes('Yes') || data.wind.includes('ban') ? 'status-active' : data.wind.includes('Expired') ? 'status-expired' : 'status-none'}">${data.wind}</div>
-                                        <div style="font-size: 0.9em; color: #666;">${data.windDates}</div>
-                                    </div>
-                                    <div class="popup-section">
-                                        <span class="popup-label">Solar Moratorium:</span>
-                                        <div class="popup-value ${data.solar.includes('Yes') || data.solar.includes('ban') ? 'status-active' : data.solar.includes('Expired') ? 'status-expired' : 'status-none'}">${data.solar}</div>
-                                        <div style="font-size: 0.9em; color: #666;">${data.solarDates}</div>
-                                    </div>
-                                    ${data.source ? `<a href="${data.source}" target="_blank" class="popup-link">View Source →</a>` : ''}
-                                `;
+                            const popupContent = `
+                                <div class="popup-title">${countyName} County</div>
+                                <div class="popup-section">
+                                    <span class="popup-label">Wind Moratorium:</span>
+                                    <div class="popup-value ${
+                                        (data.wind || '').toLowerCase().includes('yes') || (data.wind || '').toLowerCase().includes('ban')
+                                            ? 'status-active' : (data.wind || '').toLowerCase().includes('expired')
+                                            ? 'status-expired' : 'status-none'
+                                    }">${data.wind || 'N/A'}</div>
+                                    <div style="font-size: 0.9em; color: #666;">${data.windDates || ''}</div>
+                                </div>
+                                <div class="popup-section">
+                                    <span class="popup-label">Solar Moratorium:</span>
+                                    <div class="popup-value ${
+                                        (data.solar || '').toLowerCase().includes('yes') || (data.solar || '').toLowerCase().includes('ban')
+                                            ? 'status-active' : (data.solar || '').toLowerCase().includes('expired')
+                                            ? 'status-expired' : 'status-none'
+                                    }">${data.solar || 'N/A'}</div>
+                                    <div style="font-size: 0.9em; color: #666;">${data.solarDates || ''}</div>
+                                </div>
+                                ${data.source ? `<a href="${data.source}" target="_blank" class="popup-link">View Source →</a>` : ''}
+                            `;
 
-                                layer.bindPopup(popupContent);
-                            }
+                            layer.bindPopup(popupContent);
                         }
                     }).addTo(map);
                     
