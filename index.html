@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kansas Renewable Energy Moratoriums Map</title>
+    <title>Renewable Energy Moratoriums Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- PapaParse for CSV parsing -->
@@ -254,7 +254,7 @@
 </head>
 <body>
     <div id="header">
-        <h1>Kansas Renewable Energy Moratoriums</h1>
+        <h1>Renewable Energy Moratoriums</h1>
         <p>Interactive Map of Wind and Solar Development Restrictions</p>
     </div>
     
@@ -411,7 +411,11 @@
                 // Convert CSV rows to object format
                 results.data.forEach(row => {
                     const rawName = row['County'] ? row['County'].trim() : "";
-                    const key = normCountyName(rawName);
+                    const fips = row['FIPS'] ? row['FIPS'].trim() : null;
+                    
+                    // Store by FIPS if available, otherwise use normalized name as fallback
+                    const key = fips || normCountyName(rawName);
+                    
                     countyData[key] = {
                         wind: row['Wind Status']?.trim() || "",
                         windDates: row['Wind Dates']?.trim() || "",
@@ -419,7 +423,8 @@
                         solarDates: row['Solar Dates']?.trim() || "",
                         source: row['Source']?.trim() || "",
                         status: row['Status Category']?.trim() || "insufficient",
-                        displayName: rawName
+                        displayName: rawName,
+                        fips: fips
                     };
                 });
                 
@@ -446,16 +451,25 @@
                 .then(data => {
                     clearTimeout(loadTimeout);
                     
-                    // Filter for Kansas counties (FIPS code starting with 20)
-                    const kansasCounties = {
+                    // Filter for Kansas, Missouri, and Illinois counties (FIPS codes 20, 29, 17)
+                    const targetCounties = {
                         type: 'FeatureCollection',
-                        features: data.features.filter(f => f.id.startsWith('20'))
+                        features: data.features.filter(f => 
+                            f.id.startsWith('20') || f.id.startsWith('29') || f.id.startsWith('17')
+                        )
                     };
 
-                    const geoJsonLayer = L.geoJSON(kansasCounties, {
+                    const geoJsonLayer = L.geoJSON(targetCounties, {
                         style: function(feature) {
+                            const fips = feature.id;
                             const countyName = (feature.properties.NAME || feature.properties.name || "").trim();
-                            const data = countyData[normCountyName(countyName)];
+                            
+                            // Try FIPS lookup first, fall back to name normalization
+                            let data = countyData[fips];
+                            if (!data) {
+                                data = countyData[normCountyName(countyName)];
+                            }
+                            
                             const color = data ? getColor(data.status) : '#bdbdbd';
                             
                             return {
@@ -467,8 +481,14 @@
                             };
                         },
                         onEachFeature: function(feature, layer) {
+                            const fips = feature.id;
                             const countyName = (feature.properties.NAME || feature.properties.name || "").trim();
-                            const data = countyData[normCountyName(countyName)];
+                            
+                            // Try FIPS lookup first, fall back to name normalization
+                            let data = countyData[fips];
+                            if (!data) {
+                                data = countyData[normCountyName(countyName)];
+                            }
                             
                             if (!data) return;
                             
@@ -518,7 +538,7 @@
                         }
                     }).addTo(map);
                     
-                    // Auto-fit map to Kansas boundaries
+                    // Auto-fit map to county boundaries
                     const bounds = geoJsonLayer.getBounds();
                     map.fitBounds(bounds, {
                         padding: [20, 20],
